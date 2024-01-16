@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "183456199461",
+    "project_id": "fir-by-krishna",
+    "storage_bucket": "fir-by-krishna.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:183456199461:android:7f1a5f528331279445a0cc",
+        "android_client_info": {
+          "package_name": "com.example.firebase_by"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRc453U-zguAAlz0FUZBHX1Vz5YQHr-Us"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
