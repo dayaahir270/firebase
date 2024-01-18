@@ -1,16 +1,16 @@
-
+import 'package:animate_do/animate_do.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_by/screen/login_screen.dart';
+import 'package:firebase_by/screen/signup.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../note_model.dart';
-
+import 'login.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userId;
+  //final String userId;
 
-  const HomeScreen({super.key, required this.userId});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,6 +18,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  String userId = "";
+  String searchQuery = "";
+  bool isSearching = false;
 
   late FirebaseFirestore fireStore;
 
@@ -28,6 +31,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     fireStore = FirebaseFirestore.instance;
+    getUidFromPrefs();
+  }
+
+  getUidFromPrefs() async {
+    var prefs = await SharedPreferences.getInstance();
+    userId = prefs.getString(MyLogin.LOGIN_PREFS_KEY)!;
+    setState(() {});
   }
 
   @override
@@ -35,9 +45,28 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
-        title: const Text(
+        title: isSearching
+            ? SizedBox(
+          height: 40,
+          child: TextFormField(
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Colors.blue),
+                  borderRadius: BorderRadius.circular(8)),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+            onChanged: (value) {
+              setState(() {
+                searchQuery = value;
+              });
+            },
+          ),
+        )
+            : const Text(
           "Firebase Note App",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style:
+          TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         leading: IconButton(
           onPressed: () {
@@ -51,14 +80,53 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
+            onPressed: () {
+              setState(() {
+                isSearching = !isSearching;
+              });
+            },
+            icon: const Icon(
+              Icons.search,
+              color: Colors.white,
+            ),
+          ),
+          IconButton(
             onPressed: () async {
-              var pref = await SharedPreferences.getInstance();
-              pref.setBool(MyLogin.LOGIN_PREFS_KEY, false);
-              if (!mounted) {
-                return;
-              }
-              Navigator.pushReplacement(
-                  context, MaterialPageRoute(builder: (ctx) => MyLogin()));
+              showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) {
+                    return AlertDialog(
+                      title: const Text("Logout?"),
+                      content: const Text("Are sure want to logout ?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            "Cancel",
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            var pref = await SharedPreferences.getInstance();
+                            pref.setString(MyLogin.LOGIN_PREFS_KEY, "");
+
+                            Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (ctx) =>  MyLogin()));
+                          },
+                          child: const Text(
+                            "Logout",
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    );
+                  });
             },
             icon: const Icon(
               Icons.logout,
@@ -71,8 +139,9 @@ class _HomeScreenState extends State<HomeScreen> {
       body: FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
         future: fireStore
             .collection("users")
-            .doc(widget.userId)
+            .doc(userId)
             .collection("notes")
+            .orderBy("time", descending: true)
             .get(),
         builder: (_, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -85,15 +154,27 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           } else if (snapshot.hasData) {
             var mData = snapshot.data!.docs;
-            return ListView.builder(
-              itemCount: mData.length,
+            var filteredNotes = mData
+                .where((note) => note
+                .data()["title"]
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase()))
+                .toList();
+            return filteredNotes.isNotEmpty
+                ? ListView.builder(
+              itemCount: filteredNotes.length,
               itemBuilder: (_, index) {
-                NoteModel currNote = NoteModel.fromMap(mData[index].data());
+                NoteModel currNote =
+                NoteModel.fromMap(mData[index].data());
                 return Container(
-                  margin:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 10),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade200,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(15),
+                      bottomRight: Radius.circular(15),
+                    ),
                   ),
                   child: ListTile(
                     title: Text(
@@ -133,10 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       actions: [
                                         TextButton(
                                           onPressed: () {
-                                            var collRef =
-                                            fireStore.collection("users");
-                                            collRef
-                                                .doc(widget.userId)
+                                            fireStore
+                                                .collection("users")
+                                                .doc(userId)
                                                 .collection("notes")
                                                 .doc(mData[index].id)
                                                 .delete();
@@ -166,6 +246,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
+            )
+                : const Center(
+              child: Text(
+                "No notes yet!!!",
+                style:
+                TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+              ),
             );
           }
           return Container();
@@ -218,12 +305,12 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Column(
               children: [
-                NoteTextField(
-                  label: "Enter title",
+                TextField(
+
                   controller: titleController,
                 ),
-                NoteTextField(
-                  label: "Enter description",
+                TextField(
+
                   controller: descController,
                 ),
                 Row(
@@ -249,20 +336,28 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (isUpdate) {
                             /// For Update Note
                             collRef
-                                .doc(widget.userId)
+                                .doc(userId)
                                 .collection("notes")
                                 .doc(docId)
                                 .update(NoteModel(
-                                title: titleController.text.toString(),
-                                desc: descController.text.toString())
-                                .toMap());
+                              title: titleController.text.toString(),
+                              desc: descController.text.toString(),
+                              time: DateTime.now()
+                                  .millisecondsSinceEpoch
+                                  .toString(),
+                            ).toMap());
                           } else {
                             /// For Add New Note
-                            collRef.doc(widget.userId).collection("notes").add(
-                                NoteModel(
-                                    title: titleController.text.toString(),
-                                    desc: descController.text.toString())
-                                    .toMap());
+                            collRef
+                                .doc(userId)
+                                .collection("notes")
+                                .add(NoteModel(
+                              title: titleController.text.toString(),
+                              desc: descController.text.toString(),
+                              time: DateTime.now()
+                                  .millisecondsSinceEpoch
+                                  .toString(),
+                            ).toMap());
                           }
                           titleController.clear();
                           descController.clear();
@@ -292,3 +387,97 @@ class _HomeScreenState extends State<HomeScreen> {
         });
   }
 }
+class HomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: MediaQuery.of(context).size.height,
+          padding: EdgeInsets.symmetric(horizontal: 30, vertical: 50),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Column(
+                children: <Widget>[
+                  FadeInUp(duration: Duration(milliseconds: 1000), child:Text("Welcome", style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 30
+                  ),)),
+                  SizedBox(height: 20,),
+                  FadeInUp(duration: Duration(milliseconds: 1200), child: Text("Automatic identity verification which enables you to verify your identity",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 15
+                    ),)),
+                ],
+              ),
+              FadeInUp(duration: Duration(milliseconds: 1400), child: Container(
+                height: MediaQuery.of(context).size.height / 3,
+                decoration: BoxDecoration(
+                    image: DecorationImage(
+                        image: AssetImage('assets/illustration.png')
+                    )
+                ),
+              )),
+              Column(
+                children: <Widget>[
+                  FadeInUp(duration: Duration(milliseconds: 1500), child: MaterialButton(
+                    minWidth: double.infinity,
+                    height: 60,
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => MyLogin()));
+                    },
+                    shape: RoundedRectangleBorder(
+                        side: BorderSide(
+                            color: Colors.black
+                        ),
+                        borderRadius: BorderRadius.circular(50)
+                    ),
+                    child: Text("Login", style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18
+                    ),),
+                  )),
+                  SizedBox(height: 20,),
+                  FadeInUp(duration: Duration(milliseconds: 1600), child: Container(
+                    padding: EdgeInsets.only(top: 3, left: 3),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(50),
+                        border: Border(
+                          bottom: BorderSide(color: Colors.black),
+                          top: BorderSide(color: Colors.black),
+                          left: BorderSide(color: Colors.black),
+                          right: BorderSide(color: Colors.black),
+                        )
+                    ),
+                    child: MaterialButton(
+                      minWidth: double.infinity,
+                      height: 60,
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => MyRegister()));
+                      },
+                      color: Colors.yellow,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50)
+                      ),
+                      child: Text("Sign up", style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18
+                      ),),
+                    ),
+                  ))
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

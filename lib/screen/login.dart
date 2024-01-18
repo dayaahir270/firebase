@@ -1,16 +1,26 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_by/screen/signup.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'home_screen.dart';
 
-class MyLogin extends StatelessWidget {
-   MyLogin({Key? key}) : super(key: key);
-   static const String LOGIN_PREFS_KEY = "isLogin";
+class MyLogin extends StatefulWidget {
+  const MyLogin({Key? key}) : super(key: key);
 
-   final TextEditingController emailController = TextEditingController();
-   final TextEditingController passController = TextEditingController();
+  static const String LOGIN_PREFS_KEY = "isLogin";
+
+  @override
+  _MyLoginState createState() => _MyLoginState();
+}
+
+class _MyLoginState extends State<MyLogin> {
+  final TextEditingController emailController = TextEditingController();
+
+  final TextEditingController passController = TextEditingController();
+
+  bool isCheck = true;
 
   @override
   Widget build(BuildContext context) {
@@ -77,53 +87,49 @@ class MyLogin extends StatelessWidget {
                                 style: TextStyle(
                                     fontSize: 27, fontWeight: FontWeight.w700),
                               ),
-                              CircleAvatar(
-                                radius: 30,
-                                backgroundColor: Color(0xff4c505b),
-                                child: IconButton(
-                                    color: Colors.white,
-                                    onPressed: () async{
-    if (emailController.text.isNotEmpty &&
-    passController.text.isNotEmpty) {
-    var auth = FirebaseAuth.instance;
+                              ElevatedButton(
+                                onPressed: ()  async {
+                                  if (emailController.text.isNotEmpty &&
+                                      passController.text.isNotEmpty) {
+                                    var auth = FirebaseAuth.instance;
 
-    try {
-    var userCred = await auth.signInWithEmailAndPassword(
-    email: emailController.text.toString(),
-    password: passController.text.toString());
+                                    try {
+                                      var userCred =
+                                          await auth.signInWithEmailAndPassword(
+                                          email: emailController.text.toString(),
+                                          password: passController.text.toString());
 
-    var prefs = await SharedPreferences.getInstance();
-    prefs.setBool(LOGIN_PREFS_KEY, true);
+                                      var prefs = await SharedPreferences.getInstance();
+                                      prefs.setString(MyLogin.LOGIN_PREFS_KEY,
+                                          userCred.user!.uid);
 
-    Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-    builder: (ctx) => HomeScreen(
-    userId: userCred.user!.uid,
-    )));
-    } on FirebaseAuthException catch (e) {
-    if (e.code == 'user-not-found') {
-    ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-    content:
-    Text("No user found for that email.")));
-    } else if (e.code == 'wrong-password') {
-    ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-    content: Text(
-    "Wrong password provided for that user.")));
-    }
-    }
-    }
-    },
-
-
-
-
-
-                                    icon: Icon(
-                                      Icons.arrow_forward,
-                                    )),
+                                      Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (ctx) => const HomeScreen()));
+                                    } on FirebaseAuthException catch (e) {
+                                      if (e.code == 'user-not-found') {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    "No user found for that email.")));
+                                      } else if (e.code == 'wrong-password') {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    "Wrong password provided for that user.")));
+                                      }
+                                    }
+                                  }
+                                },
+                                child: Text(
+                                  'Login',
+                                      style: TextStyle(
+                                        decoration: TextDecoration.none,
+                                            color: Color(0xff4c505b),
+                                          fontSize: 18,
+                                      ),
+                                ),
                               )
                             ],
                           ),
@@ -135,7 +141,7 @@ class MyLogin extends StatelessWidget {
                             children: [
                               TextButton(
                                 onPressed: () {
-                                  Navigator.pushNamed(context, 'register');
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => MyRegister(),));
                                 },
                                 child: Text(
                                   'Sign Up',
@@ -171,6 +177,4 @@ class MyLogin extends StatelessWidget {
       ),
     );
   }
-
-
 }

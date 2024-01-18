@@ -1,8 +1,15 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_by/screen/signup.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'login_screen.dart';
+import 'home_screen.dart';
+import 'login.dart';
+
+
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -11,19 +18,31 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final fireStore = FirebaseFirestore.instance;
+
   @override
   void initState() {
     super.initState();
+    Timer(const Duration(seconds: 4), () async {
+      var prefs = await SharedPreferences.getInstance();
+      String? checkLogin = prefs.getString(MyRegister.LOGIN_PREFS_KEY);
+      Widget navigateTo = MyLogin();
+      if (!mounted) {
+        return;
+      }
 
-    Timer(Duration(seconds: 4), () {
+      print(checkLogin);
+      if (checkLogin != null && checkLogin != "") {
+        navigateTo = HomeScreen();
+      }
+
       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => MyLogin(),
-        ),
-      );
+          context, MaterialPageRoute(builder: (ctx) => navigateTo));
     });
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {
